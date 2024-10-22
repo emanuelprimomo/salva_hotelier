@@ -1,0 +1,37 @@
+[
+  {
+    "usn": "a",
+    "pwd": "ciao12345",
+    "badge": "recensore",
+    "rn": 0,
+    "online": true
+  },
+  {
+    "usn": "b",
+    "pwd": "prova123",
+    "badge": "recensore",
+    "rn": 1,
+    "online": false
+  },
+  {
+    "usn": "f",
+    "pwd": "prova",
+    "badge": "recensore",
+    "rn": 0,
+    "online": false
+  },
+  {
+    "usn": "v",
+    "pwd": "ciao1234",
+    "badge": "recensore",
+    "rn": 2,
+    "online": false
+  },
+  {
+    "usn": "ciao",
+    "pwd": "prova123",
+    "badge": "recensore",
+    "rn": 0,
+    "online": true
+  }
+]
