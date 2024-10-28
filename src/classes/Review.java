@@ -16,17 +16,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class Review {
 
-  private static Float synVote;
-  //private static int quantity;
-  private static Date date;
+  private Float synVote;
+  private Date date;
+  private List<Float> ratings;
 
-  public Review(Float synVote) {
+  public Review(Float synVote, List<Float> ratings) {
     this.synVote = synVote; // rappresenta la quality
     //this.quantity = quantity;
     this.date = new Date();
+    this.ratings = ratings;
+
   }
 
-  public static Float getSynVote() {
+  public Float getSynVote() {
     return synVote;
   }
 
@@ -38,10 +40,8 @@ public class Review {
     return date;
   }
 
-  
-
-  public static void setSynVote(Float synVote) {
-    Review.synVote = synVote;
+  public void setSynVote(Float synVote) {
+    this.synVote = synVote;
   }
 }
 /*

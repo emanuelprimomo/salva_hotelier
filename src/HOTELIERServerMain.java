@@ -62,11 +62,15 @@ import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import netscape.javascript.JSObject;
+import server.HotelsWithReviewsHandler;
 import server.JointOperations;
 import server.LogMethods;
 import server.Logged;
 import server.RegMethods;
+import server.ServerSaverThread;
+import server.UdpMessage;
 
 /*
  * Mi muovo con i JSONArray e JSONObject, problema nella scrittura del file json
@@ -75,11 +79,61 @@ import server.RegMethods;
 public class HOTELIERServerMain {
 
   /*
-   * devo implementare un thread che si occupa semplicemente di scrivere all'inFterno del file
+   * devo implementare un thread che si occupa semplicemente di scrivere all'interno del file
    */
   private static final int PORT_NUMBER = 8888;
   private static final String PATH_AND_FILE_NAME = "src/data/Users.json";
   private static final int TIME_TO_WRITE = 10 * 1000;
+  private static final String PATH_AND_FILE_NAME_HOTELS_REVIEWED =
+    "src/data/hotelsReviewed.json";
+  private static ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
+  private static volatile MulticastSocket socketUDP = null;
+
+  static {
+    try {
+      File file = new File(PATH_AND_FILE_NAME_HOTELS_REVIEWED);
+      if (!file.exists()) {
+        createHotelsReviewedFile(file);
+      }
+      hotelsWithReviews =
+        loadHotelsWithReviewsFromJson(PATH_AND_FILE_NAME_HOTELS_REVIEWED);
+    } catch (IOException e) {
+      e.printStackTrace();
+      hotelsWithReviews = new ConcurrentHashMap<>(); // Inizializza con una mappa vuota in caso di errore
+    }
+  }
+
+  // Metodo per creare un file JSON vuoto
+  private static void createHotelsReviewedFile(File file) throws IOException {
+    JsonObject jsonObject = new JsonObject();
+    try (FileWriter writer = new FileWriter(file)) {
+      writer.write(jsonObject.toString());
+    }
+  }
+
+  // Metodo per leggere gli hotel recensiti da un file JSON
+  private static ConcurrentHashMap<String, ArrayList<Hotel>> loadHotelsWithReviewsFromJson(
+    String filePath
+  ) throws IOException {
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
+    try (FileReader reader = new FileReader(filePath)) {
+      JsonElement jsonElement = JsonParser.parseReader(reader);
+      JsonObject jsonObject = jsonElement.getAsJsonObject();
+      for (String city : jsonObject.keySet()) {
+        JsonArray jsonArray = jsonObject.getAsJsonArray(city);
+        ArrayList<Hotel> hotelList = new ArrayList<>();
+        for (JsonElement element : jsonArray) {
+          Hotel hotel = new Gson().fromJson(element, Hotel.class);
+          hotelList.add(hotel);
+        }
+        hotelsWithReviews.put(city, hotelList);
+      }
+    } catch (IOException e) {
+      System.out.println("Errore nella lettura del file JSON");
+      e.printStackTrace();
+    }
+    return hotelsWithReviews;
+  }
 
   public static void main(String[] args)
     throws IOException, InterruptedException, JsonIOException {
@@ -88,8 +142,20 @@ public class HOTELIERServerMain {
     System.out.println("Server in ascolto sulla porta " + PORT_NUMBER);
     ConcurrentHashMap<String, User> users = new ConcurrentHashMap();
     ConcurrentHashMap<String, ArrayList<Hotel>> hotels = new ConcurrentHashMap();
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
+    /*
+     * Creo instanza singleton del server in generale per poterla passare al thread che si occupa di scrivere sul file json e per inserire le recensioni
+     * dalla classe logged e da altre classi
+     */
+    HotelsWithReviewsHandler
+      .getInstance()
+      .setHotelsWithReviews(hotelsWithReviews);
 
+    ServerSaverThread serverSaverThread = new ServerSaverThread();
+    serverSaverThread.start();
+    //
     Timer timer = new Timer();
+
     TimerTask task = new TimerTask() {
       @Override
       public void run() {
@@ -102,7 +168,7 @@ public class HOTELIERServerMain {
         File file = new File(PATH_AND_FILE_NAME);
         JsonArray usersToWrite = new JsonArray();
         /*
-         * Aggiungo gli utenti al file Users.json
+         * Agiungo gli utenti al file Users.json
          */
         for (User user : users.values()) {
           /* scorro l'array di utenti */
@@ -182,7 +248,7 @@ public class HOTELIERServerMain {
     /*
      * Creo il collegamento UDP
      */
-    MulticastSocket socketUDP = null;
+    //MulticastSocket socketUDP = null;
     InetAddress group = null;
     DatagramPacket packet = null;
     try {
@@ -195,6 +261,7 @@ public class HOTELIERServerMain {
     /*
      *
      */
+
     while (true) {
       socket = serverSocket.accept();
       /* nuovo client arrivato */
@@ -256,8 +323,23 @@ public class HOTELIERServerMain {
             case "login":
               User user = LogMethods.loginUser(in, out, users); //per loggare
               if (user != null) {
-                Logged.userLoggedOperations(in, out, users, hotels, user); //una volta loggato
+                System.out.println(
+                  "Utente loggato, valori dell'udp message: " +
+                  group +
+                  " " +
+                  PORT_NUMBER
+                );
+                Logged.userLoggedOperations(
+                  in,
+                  out,
+                  users,
+                  hotels,
+                  hotelsWithReviews,
+                  user,
+                  new UdpMessage("", group, PORT_NUMBER)
+                ); //una volta loggato
               }
+
               break;
             case "logout":
               JointOperations.logout(in, out, users);
@@ -280,11 +362,6 @@ public class HOTELIERServerMain {
         out.close();
         in.close();
         socket.close();
-        if (Thread.currentThread().isInterrupted()) {
-          /*
-           * DA FARE
-           */
-        }
       } catch (Exception e) {
         System.out.println("error: " + e);
         Thread.currentThread().interrupt();

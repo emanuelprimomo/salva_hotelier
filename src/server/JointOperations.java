@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -89,11 +90,17 @@ public class JointOperations {
             "services": 0,
             "quality": 0
            */
-          Float[] ratings = new Float[4];
+          /*Float[] ratings = new Float[4];
           ratings[0] = Float.valueOf(cleaning);
           ratings[1] = Float.valueOf(position);
           ratings[2] = Float.valueOf(serviceInRatings);
-          ratings[3] = Float.valueOf(quality);
+          ratings[3] = Float.valueOf(quality);*/
+          List<Float> ratings = Arrays.asList(
+            cleaning,
+            position,
+            serviceInRatings,
+            quality
+          );
           System.out.println("Valori tutti inseriti correttamente");
 
           Hotel hotel = new Hotel(
@@ -167,11 +174,17 @@ public class JointOperations {
           Float quality = ratingsObject.get("quality").getAsFloat();
 
           //inserisco i valori
-          Float[] ratings = new Float[4];
+          List<Float> ratings = Arrays.asList(
+            cleaning,
+            position,
+            serviceInRatings,
+            quality
+          );
+          /*Float[] ratings = new Float[4];
           ratings[0] = Float.valueOf(cleaning);
           ratings[1] = Float.valueOf(position);
           ratings[2] = Float.valueOf(serviceInRatings);
-          ratings[3] = Float.valueOf(quality);
+          ratings[3] = Float.valueOf(quality);*/
 
           System.out.println("Valori tutti inseriti correttamente");
 
@@ -196,6 +209,88 @@ public class JointOperations {
     } catch (IOException e) { //problema nella lettura dei ratings
       System.out.println("Errore nell'apertura del file");
     }
+  }
+
+  public static synchronized Hotel returnHotelInformations(
+    String city,
+    String hotelName
+  ) {
+    Hotel hotelToReturn = null;
+    Gson gson = new Gson();
+
+    List<Hotel> hotelList = new ArrayList<>();
+
+    //a breve lo continuo
+    System.out.println("Hotel da ricercare " + hotelName + " in " + city);
+    try (FileReader reader = new FileReader(PATH_AND_FILE_NAME_HOTELS)) {
+      System.out.println("Apro il file Hotels.json");
+      // Parse il file JSON e converti in JsonArray
+      JsonElement jsonElement = JsonParser.parseReader(reader);
+      JsonArray jsonArray = jsonElement.getAsJsonArray();
+
+      // Itera su ogni elemento dell'array
+      for (JsonElement element : jsonArray) {
+        // Ogni elemento è un JsonObject
+        JsonObject jsonObject = element.getAsJsonObject();
+        // Estrai i valori dal JsonObject
+        String name = jsonObject.get("name").getAsString().toLowerCase();
+        //System.out.println("nome hotel: " + name);
+        String cityInFile = jsonObject.get("city").getAsString().toLowerCase();
+        /* mi devo passare anche il nome dell'hotel */
+        if (cityInFile.equals(city) && name.equals(hotelName)) {
+          System.out.println("hotel trovato");
+          String description = jsonObject.get("description").getAsString();
+          String phone = jsonObject.get("phone").getAsString();
+          // Estrai e stampa l'array "hobbies"
+          System.out.print("Services: ");
+          JsonArray services = jsonObject.getAsJsonArray("services");
+          String[] servicesString = new String[services.size()];
+          int i = 0;
+          for (JsonElement service : services) {
+            servicesString[i] = service.getAsString();
+            i++;
+          }
+          Float rate = jsonObject.get("rate").getAsFloat();
+
+          //estraggo l'oggetto ratings
+          JsonObject ratingsObject = jsonObject.getAsJsonObject("ratings");
+          Float cleaning = ratingsObject.get("cleaning").getAsFloat();
+          Float position = ratingsObject.get("position").getAsFloat();
+          Float serviceInRatings = ratingsObject.get("services").getAsFloat();
+          Float quality = ratingsObject.get("quality").getAsFloat();
+
+          //inserisco i valori
+          List<Float> ratings = Arrays.asList(
+            cleaning,
+            position,
+            serviceInRatings,
+            quality
+          );
+          /*ratings[0] = Float.valueOf(cleaning);
+          ratings[1] = Float.valueOf(position);
+          ratings[2] = Float.valueOf(serviceInRatings);
+          ratings[3] = Float.valueOf(quality);*/
+
+          System.out.println("Valori tutti inseriti correttamente");
+
+          hotelToReturn =
+            new Hotel(
+              hotelName,
+              city,
+              description,
+              phone,
+              servicesString,
+              rate,
+              ratings,
+              0.0f,
+              new ArrayList<Review>()
+            );
+        }
+      }
+    } catch (IOException e) { //problema nella lettura dei ratings
+      System.out.println("Errore nell'apertura del file");
+    }
+    return hotelToReturn;
   }
 
   public static synchronized void searchHotel(

@@ -2,36 +2,36 @@
   {
     "usn": "a",
     "pwd": "ciao12345",
-    "badge": "recensore",
-    "rn": 0,
-    "online": true
+    "badge": "Recensore esperto",
+    "rn": 41,
+    "online": false
   },
   {
     "usn": "b",
     "pwd": "prova123",
-    "badge": "recensore",
-    "rn": 1,
+    "badge": "Recensore esperto",
+    "rn": 22,
     "online": false
   },
   {
     "usn": "f",
     "pwd": "prova",
     "badge": "recensore",
-    "rn": 0,
+    "rn": 3,
     "online": false
   },
   {
     "usn": "v",
     "pwd": "ciao1234",
-    "badge": "recensore",
-    "rn": 2,
+    "badge": "Recensore esperto",
+    "rn": 23,
     "online": false
   },
   {
     "usn": "ciao",
     "pwd": "prova123",
-    "badge": "recensore",
-    "rn": 0,
-    "online": true
+    "badge": "Recensore esperto",
+    "rn": 35,
+    "online": false
   }
 ]

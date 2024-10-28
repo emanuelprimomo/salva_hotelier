@@ -12,10 +12,11 @@ public class Hotel {
   private String phone;
   private String[] services;
   private Float rate;
-  private Float[] ratings;
+  private List<Float> ratings;
   private Float ranking; //utilizzata per ordinare
   private List<Review> reviews;
 
+  /* hotel con tutte le operazioni */
   public Hotel(
     String name,
     String city,
@@ -23,7 +24,7 @@ public class Hotel {
     String phone,
     String[] services,
     Float rate,
-    Float[] ratings,
+    List<Float> ratings,
     Float ranking,
     List<Review> reviews
   ) {
@@ -45,7 +46,7 @@ public class Hotel {
     return this.city;
   }
 
-  public String getdescription() {
+  public String getDescription() {
     return this.description;
   }
 
@@ -62,7 +63,7 @@ public class Hotel {
   }
 
   // penso che lo cambierò in float
-  public Float[] getRatings() {
+  public List<Float> getRatings() {
     return this.ratings;
   }
 
@@ -119,7 +120,7 @@ public class Hotel {
     this.rate = rate;
   }
 
-  public void setRatings(Float[] ratings) {
+  public void setRatings(List<Float> ratings) {
     this.ratings = ratings;
   }
 
@@ -128,7 +129,7 @@ public class Hotel {
   }
 
   public void addReview(Review review) {
-    reviews.add(review);
+    this.reviews.add(review);
   }
 
   @Override

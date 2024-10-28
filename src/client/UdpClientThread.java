@@ -8,22 +8,23 @@ import java.net.UnknownHostException;
 
 public class UdpClientThread extends Thread {
 
-  private int port = 4446;
+  private int port = 8888;
   private String multicastGroup = "230.0.0.0";
+  private MulticastSocket socketUDP;
 
-  public UdpClientThread() {
+  public UdpClientThread(MulticastSocket socketUDP) {
     this.port = port;
     this.multicastGroup = multicastGroup;
+    this.socketUDP = socketUDP;
   }
 
   @Override
   @SuppressWarnings("deprecation")
   public void run() {
-    MulticastSocket socketUDP = null;
     try {
-      socketUDP = new MulticastSocket(port);
+      this.socketUDP = new MulticastSocket(port);
       InetAddress group = InetAddress.getByName(multicastGroup);
-      socketUDP.joinGroup(group);
+      this.socketUDP.joinGroup(group);
 
       byte[] buffer = new byte[1024]; // Buffer per il pacchetto
       DatagramPacket packet = new DatagramPacket(buffer, buffer.length); // Crea il datagramma

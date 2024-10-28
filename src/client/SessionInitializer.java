@@ -3,7 +3,9 @@ package client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.MulticastSocket;
 import java.net.Socket;
+import java.nio.channels.DatagramChannel;
 import java.util.Scanner;
 
 /*
@@ -21,7 +23,8 @@ public class SessionInitializer {
   public static void sessionMethods(
     Socket socket,
     PrintWriter out,
-    BufferedReader inServer
+    BufferedReader inServer,
+    MulticastSocket socketUDP
   ) throws IOException {
     Scanner in = new Scanner(System.in);
     Scanner scan = null;
@@ -39,13 +42,14 @@ public class SessionInitializer {
      */
     scan = new Scanner(socket.getInputStream());
     {
-      while (!stop) {
-        synchronized (System.out) {
-          System.out.println(
-            "Inserire le operazioni da effettuare:\n - Register\n - Login\n - Search Hotel\n - Search All Hotels\n - Exit"
-          );
-        }
+      synchronized (System.out) {
+        System.out.println(
+          "Inserire le operazioni da effettuare:\n - Register\n - Login\n - Search Hotel\n - Search All Hotels\n - Exit"
+        );
+      }
+      while (in.hasNextLine() && !stop) {
         command = in.nextLine().toLowerCase();
+
         switch (command) {
           case "register":
             /*
@@ -222,12 +226,53 @@ public class SessionInitializer {
       }
       synchronized (System.out) {
         System.out.println("Connessione interrotta");
+        closeConnections(socket, out, in, inServer, socketUDP);
       }
     }
 
     in.close();
     out.close();
     inServer.close();
-    socket.close();
+  }
+
+  private static void closeConnections(
+    Socket socket,
+    PrintWriter out,
+    Scanner in,
+    BufferedReader inServer,
+    MulticastSocket socketUDP
+  ) {
+    try {
+      if (out != null) out.close();
+    } catch (Exception e) {
+      System.out.println("Errore durante la chiusura di PrintWriter: " + e);
+      e.printStackTrace();
+    }
+
+    try {
+      if (inServer != null) inServer.close();
+    } catch (IOException e) {
+      System.out.println("Errore durante la chiusura di BufferedReader: " + e);
+      e.printStackTrace();
+    }
+
+    try {
+      if (in != null) in.close();
+    } catch (Exception e) {
+      System.out.println("Errore durante la chiusura di Scanner: " + e);
+      e.printStackTrace();
+    }
+
+    try {
+      if (socket != null && !socket.isClosed()) socket.close();
+    } catch (IOException e) {
+      System.out.println("Errore durante la chiusura di Socket: " + e);
+      e.printStackTrace();
+    }
+    try {
+      if (socketUDP != null && !socketUDP.isClosed()) socketUDP.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 }

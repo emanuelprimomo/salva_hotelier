@@ -76,7 +76,7 @@ public class HOTELIERClientMain {
   public static void main(String[] args)
     throws UnknownHostException, IOException, InterruptedException {
     Scanner in = new Scanner(System.in);
-    Scanner scan = null;
+    //Scanner scan = null;
     String command = null;
     String serverResponse = null;
     String userConnected = null;
@@ -92,30 +92,18 @@ public class HOTELIERClientMain {
     BufferedReader inServer = new BufferedReader(
       new InputStreamReader(socket.getInputStream())
     ); // qui ricevo le risposte dal server
-    Boolean stop = false;
     /*
      * variabile utilizzata per vedere se un utente è loggato
      */
     Boolean log = false;
-    scan = new Scanner(socket.getInputStream());
+    Scanner scan = new Scanner(socket.getInputStream());
+    Boolean stop = false;
 
     //Thread thread = new Thread(new UDPThread());
-
-    UdpClientThread udpListener = new UdpClientThread();
+    MulticastSocket socketUDP = new MulticastSocket();
+    UdpClientThread udpListener = new UdpClientThread(socketUDP);
     udpListener.start();
     //thread.start();
-
-    /*
-     synchronized (System.out) {
-      System.out.println(
-        "Inserire le operazioni da effettuare:\n - Register\n - Login\n - Search Hotel\n - Search All Hotels"
-      );
-    }
-     */
-    SessionInitializer.sessionMethods(socket, out, inServer);
-    /*out.close();
-    in.close();
-    inServer.close();
-    socket.close();*/
+    SessionInitializer.sessionMethods(socket, out, inServer, socketUDP);
   }
 }
