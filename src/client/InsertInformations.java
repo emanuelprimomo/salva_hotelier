@@ -2,13 +2,51 @@ package client;
 
 import java.util.Scanner;
 
-/*
- *
- * Classe utilizzata per inserire le informazioni da parte dell'utente
+/**
+ * Classe che contiene i metodi per inserire le informazioni
+ * <p> Questa classe contiene i metodi per inserire le informazioni </p>
+ * <p> Esempio di utilizzo del metodo insertUsername </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * String usn = InsertInformations.insertUsername(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertPassword </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * String pwd = InsertInformations.insertPassword(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertCity </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * String city = InsertInformations.insertCity(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertHotelName </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * String hotelName = InsertInformations.insertHotelName(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertRate </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float rate = InsertInformations.insertRate(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertLevelClean </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float review = InsertInformations.insertLevelClean(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertLevelPosition </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float review = InsertInformations.insertLevelPosition(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertLevelService </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float review = InsertInformations.insertLevelService(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertLevelQuality </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float review = InsertInformations.insertLevelQuality(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertGlobalScore </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * Float review = InsertInformations.insertGlobalScore(in); </pre>
+ * <p> Esempio di utilizzo del metodo insertReview </p>
+ * <pre> Scanner in = new Scanner(System.in);
+ * String review = InsertInformations.insertReview(in); </pre>
  *
  */
 public class InsertInformations {
 
+  /**
+   * Metodo per inserire lo username
+   * @param in
+   * @return lo username inserito
+   */
   public static String insertUsername(Scanner in) {
     String usn, responseFromServer;
     in = new Scanner(System.in);
@@ -17,6 +55,11 @@ public class InsertInformations {
     return usn;
   }
 
+  /**
+   * Metodo per inserire la password
+   * @param in
+   * @return
+   */
   public static String insertPassword(Scanner in) {
     String pwd;
     System.out.println("Inserire password:");
@@ -28,6 +71,11 @@ public class InsertInformations {
     return pwd;
   }
 
+  /**
+   * Metodo per inserire la città
+   * @param in
+   * @return
+   */
   public static String insertCity(Scanner in) {
     String city;
     in = new Scanner(System.in);
@@ -36,6 +84,11 @@ public class InsertInformations {
     return city;
   }
 
+  /**
+   * Metodo per inserire il nome dell'hotel
+   * @param in
+   * @return
+   */
   public static String insertHotelName(Scanner in) {
     String hotelName;
     in = new Scanner(System.in);
@@ -44,6 +97,11 @@ public class InsertInformations {
     return hotelName;
   }
 
+  /**
+   * Metodo per inserire il rate della recensione
+   * @param in
+   * @return
+   */
   public static Float insertRate(Scanner in) {
     Float rate;
     in = new Scanner(System.in);
@@ -56,6 +114,11 @@ public class InsertInformations {
     return rate;
   }
 
+  /**
+   * Metodo per inserire il livello di pulizia della recensione
+   * @param in
+   * @return
+   */
   public static Float insertLevelClean(Scanner in) {
     Float review;
     in = new Scanner(System.in);
@@ -68,6 +131,11 @@ public class InsertInformations {
     return review;
   }
 
+  /**
+   * Metodo per inserire il livello di posizione della recensione
+   * @param in
+   * @return
+   */
   public static Float insertLevelPosition(Scanner in) {
     Float review;
     in = new Scanner(System.in);
@@ -82,6 +150,11 @@ public class InsertInformations {
     return review;
   }
 
+  /**
+   * Metodo per inserire il livello di servizi della recensione
+   * @param in
+   * @return
+   */
   public static Float insertLevelService(Scanner in) {
     Float review;
     in = new Scanner(System.in);
@@ -94,6 +167,11 @@ public class InsertInformations {
     return review;
   }
 
+  /**
+   * Metodo per inserire il livello di qualità della recensione
+   * @param in
+   * @return
+   */
   public static Float insertLevelQuality(Scanner in) {
     Float review;
     in = new Scanner(System.in);
@@ -106,6 +184,11 @@ public class InsertInformations {
     return review;
   }
 
+  /**
+   * Metodo per inserire il punteggio globale della recensione
+   * @param in
+   * @return
+   */
   public static Float insertGlobalScore(Scanner in) {
     Float review;
     in = new Scanner(System.in);

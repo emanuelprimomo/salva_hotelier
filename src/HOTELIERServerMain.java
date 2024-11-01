@@ -25,6 +25,7 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -64,6 +65,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import netscape.javascript.JSObject;
+import server.Cities;
 import server.HotelsWithReviewsHandler;
 import server.JointOperations;
 import server.LogMethods;
@@ -71,6 +73,7 @@ import server.Logged;
 import server.RegMethods;
 import server.ServerSaverThread;
 import server.UdpMessage;
+import server.UserManager;
 
 /*
  * Mi muovo con i JSONArray e JSONObject, problema nella scrittura del file json
@@ -86,8 +89,11 @@ public class HOTELIERServerMain {
   private static final int TIME_TO_WRITE = 10 * 1000;
   private static final String PATH_AND_FILE_NAME_HOTELS_REVIEWED =
     "src/data/hotelsReviewed.json";
-  private static ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
+  private static ConcurrentHashMap<String, ArrayList<Hotel>> hotels = new ConcurrentHashMap();
+  private static ConcurrentHashMap<String, User> users = new ConcurrentHashMap();
   private static volatile MulticastSocket socketUDP = null;
+  //per chiudere il serverSalverThread
+  private static volatile boolean running = true;
 
   static {
     try {
@@ -95,45 +101,78 @@ public class HOTELIERServerMain {
       if (!file.exists()) {
         createHotelsReviewedFile(file);
       }
-      hotelsWithReviews =
-        loadHotelsWithReviewsFromJson(PATH_AND_FILE_NAME_HOTELS_REVIEWED);
     } catch (IOException e) {
       e.printStackTrace();
-      hotelsWithReviews = new ConcurrentHashMap<>(); // Inizializza con una mappa vuota in caso di errore
+      //hotelsWithReviews = new ConcurrentHashMap<>(); // Inizializza con una mappa vuota in caso di errore
     }
   }
 
   // Metodo per creare un file JSON vuoto
-  private static void createHotelsReviewedFile(File file) throws IOException {
-    JsonObject jsonObject = new JsonObject();
-    try (FileWriter writer = new FileWriter(file)) {
-      writer.write(jsonObject.toString());
+  private static synchronized void createHotelsReviewedFile(File file)
+    throws IOException {
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    try (FileReader reader = new FileReader("src/data/Hotels.json")) {
+      // Leggi l'array di hotel dal file di input
+
+      JsonArray hotelsArray = JsonParser.parseReader(reader).getAsJsonArray();
+
+      // Aggiungi le proprietà "rate" e "reviews" a ciascun hotel
+      for (JsonElement jsonElement : hotelsArray) {
+        JsonObject hotel = jsonElement.getAsJsonObject();
+        hotel.addProperty("ranking", 0.0); // Aggiunge la proprietà rate con valore 0.0
+        hotel.add("reviews", new JsonArray()); // Aggiunge l'array vuoto reviews
+      }
+
+      // Scrivi l'array aggiornato nel nuovo file JSON
+      try (
+        FileWriter writer = new FileWriter(PATH_AND_FILE_NAME_HOTELS_REVIEWED)
+      ) {
+        gson.toJson(hotelsArray, writer);
+      }
+    } catch (IOException e) {
+      System.err.println(
+        "Errore durante la lettura/scrittura del file JSON: " + e.getMessage()
+      );
+    } catch (IllegalStateException e) {
+      System.err.println(
+        "Errore: struttura JSON non valida - " + e.getMessage()
+      );
     }
   }
 
-  // Metodo per leggere gli hotel recensiti da un file JSON
-  private static ConcurrentHashMap<String, ArrayList<Hotel>> loadHotelsWithReviewsFromJson(
-    String filePath
-  ) throws IOException {
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
-    try (FileReader reader = new FileReader(filePath)) {
-      JsonElement jsonElement = JsonParser.parseReader(reader);
-      JsonObject jsonObject = jsonElement.getAsJsonObject();
-      for (String city : jsonObject.keySet()) {
-        JsonArray jsonArray = jsonObject.getAsJsonArray(city);
-        ArrayList<Hotel> hotelList = new ArrayList<>();
-        for (JsonElement element : jsonArray) {
-          Hotel hotel = new Gson().fromJson(element, Hotel.class);
-          hotelList.add(hotel);
+  /**
+   * Carica gli hotel con le recensioni dal file JSON.
+   * @throws IOException
+   */
+  public static synchronized void loadHotelsWithReviews() {
+    try (
+      JsonReader reader = new JsonReader(
+        new FileReader(PATH_AND_FILE_NAME_HOTELS_REVIEWED)
+      )
+    ) {
+      Gson gson = new Gson();
+
+      // Inizia a leggere l'array di hotel
+      reader.beginArray();
+      while (reader.hasNext()) {
+        // Deserializza ogni hotel singolarmente
+        Hotel hotel = gson.fromJson(reader, Hotel.class);
+
+        // Inserisci l'hotel nella mappa per città
+        if (hotel.getReviews() != null && !hotel.getReviews().isEmpty()) {
+          // Inserisci l'hotel nella mappa solo se ha recensioni
+          hotels
+            .computeIfAbsent(hotel.getCity(), k -> new ArrayList<>())
+            .add(hotel);
         }
-        hotelsWithReviews.put(city, hotelList);
       }
+      reader.endArray();
     } catch (IOException e) {
-      System.out.println("Errore nella lettura del file JSON");
       e.printStackTrace();
     }
-    return hotelsWithReviews;
   }
+
 
   public static void main(String[] args)
     throws IOException, InterruptedException, JsonIOException {
@@ -141,67 +180,64 @@ public class HOTELIERServerMain {
     Socket socket = null;
     System.out.println("Server in ascolto sulla porta " + PORT_NUMBER);
     ConcurrentHashMap<String, User> users = new ConcurrentHashMap();
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotels = new ConcurrentHashMap();
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = new ConcurrentHashMap<>();
+
     /*
      * Creo instanza singleton del server in generale per poterla passare al thread che si occupa di scrivere sul file json e per inserire le recensioni
      * dalla classe logged e da altre classi
      */
-    HotelsWithReviewsHandler
-      .getInstance()
-      .setHotelsWithReviews(hotelsWithReviews);
+    HotelsWithReviewsHandler.getInstance().setHotelsWithReviews(hotels);
+    /*
+     * Carico tutti gli hotels con recensioni, quindi con il campo reviews.size()!= 0
+     */
+    loadHotelsWithReviews();
 
+    /*
+    System.out.println("Hotels caricati: " + hotels.size());
+    // Itera attraverso ogni città nella ConcurrentHashMap
+    hotels.forEach((city, hotels) -> {
+      System.out.println("Città: " + city);
+      // Itera attraverso ogni hotel della città corrente
+      for (Hotel hotel : hotels) {
+        System.out.println("Nome Hotel: " + hotel.getName());
+        System.out.println("Descrizione: " + hotel.getDescription());
+        System.out.println("Classifica: " + hotel.getRanking());
+        System.out.println("Recensioni:");
+
+        // Itera attraverso le recensioni dell'hotel
+        for (Review review : hotel.getReviews()) {
+          System.out.println("  Data: " + review.getDate());
+          System.out.println("  Voto Sintetico: " + review.getSynVote());
+          System.out.println("  Valutazioni:");
+          review
+            .getRatings()
+            .forEach((ratingCategory, ratingValue) -> {
+              System.out.println("    " + ratingCategory + ": " + ratingValue);
+            });
+        }
+        System.out.println(
+          "---------------------------------------------------"
+        );
+      }
+    });*/
+
+    // Inizializza la mappa degli hotel con le recensioni
+
+    UserManager.getInstance().setUsers(users);
     ServerSaverThread serverSaverThread = new ServerSaverThread();
     serverSaverThread.start();
-    //
-    Timer timer = new Timer();
 
-    TimerTask task = new TimerTask() {
-      @Override
-      public void run() {
-        //System.out.println("Entrato nel run del timer");
-        /*
-         * carico tutti gli utenti presenti in users nel file Users.json
-         */
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    /*
+     * carico tutti gli utenti presenti in users nel file Users.json
+     */
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        File file = new File(PATH_AND_FILE_NAME);
-        JsonArray usersToWrite = new JsonArray();
-        /*
-         * Agiungo gli utenti al file Users.json
-         */
-        for (User user : users.values()) {
-          /* scorro l'array di utenti */
-          JsonObject remainsUser = new JsonObject();
-
-          remainsUser.addProperty("usn", user.getUsn());
-          remainsUser.addProperty("pwd", user.getPwd());
-          remainsUser.addProperty("badge", user.getBadge());
-          remainsUser.addProperty("rn", user.getRn());
-          remainsUser.addProperty("online", user.getOnline());
-          usersToWrite.add(remainsUser);
-        }
-
-        try (FileWriter writer = new FileWriter(PATH_AND_FILE_NAME)) {
-          gson.toJson(usersToWrite, writer);
-          writer.flush();
-          writer.close();
-        } catch (IOException e) {
-          e.printStackTrace();
-        }
-      }
-    };
-    //errore nel caricamento nella concurrentHashMap dei dati dal file Users.json
     File file = new File(PATH_AND_FILE_NAME);
-    if (!file.exists()) {
-      file.createNewFile();
-    } else {
+
+    if (!file.exists()) file.createNewFile(); else {
       /*
        * Se è gia esistente, devo caricare gli utenti all'interno del file Users.json nella concurrentHashMap
        */
-      Gson gson = new GsonBuilder().setPrettyPrinting().create();
       try (FileReader reader = new FileReader(PATH_AND_FILE_NAME)) {
-        //System.out.println("Apro il file Users.json [file gia esistente]");
         Type userListType = new TypeToken<List<User>>() {}.getType();
         List<User> registeredUsers = new ArrayList<>();
         JsonObject remainsUsers = new JsonObject();
@@ -213,12 +249,14 @@ public class HOTELIERServerMain {
         if (registeredUsers != null) {
           for (User user : registeredUsers) {
             users.put(user.getUsn(), user);
-            /*users.put(user.getUsn(), user);
-          devo inserire i file della concurrentHashMap in Users.json che non sono gia presenti in registeredUsers*/
+            //aggiungo l'utente alla concurrentHashMap
           }
+
           for (User user : users.values()) {
             /* scorro l'array di utenti */
-            System.out.println("Utente: " + user.getUsn());
+            System.out.println(
+              "Stampa Utenti che tolgo a fine progetto: " + user.getUsn()
+            );
           }
         }
       } catch (IOException e) {
@@ -227,8 +265,7 @@ public class HOTELIERServerMain {
     }
     /*
      * Carico gli utenti presenti nella concurrentHashMap users, ma conviene farlo nel main
-     */
-    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+     
     if (users.isEmpty()) {
       Type userListType = new TypeToken<List<User>>() {}.getType();
       List<User> registeredUsers = new ArrayList<>();
@@ -242,8 +279,7 @@ public class HOTELIERServerMain {
       } catch (IOException e) {
         System.out.println("Errore nel caricamento degli utenti");
       }
-    }
-    timer.scheduleAtFixedRate(task, 0, TIME_TO_WRITE);
+    }*/
     ExecutorService executor = Executors.newCachedThreadPool();
     /*
      * Creo il collegamento UDP
@@ -261,13 +297,61 @@ public class HOTELIERServerMain {
     /*
      *
      */
+    Runtime
+      .getRuntime()
+      .addShutdownHook(
+        new Thread(() -> {
+          running = false;
+          serverSaverThread.shutdown(); // Interrompe il ServerSaverThread
+          try {
+            // Attendi il completamento del ServerSaverThread
+            serverSaverThread.join();
 
-    while (true) {
-      socket = serverSocket.accept();
-      /* nuovo client arrivato */
-      executor.execute(
-        new ServerThread(socket, users, hotels, socketUDP, group)
+            // Chiudi il serverSocket
+            if (serverSocket != null && !serverSocket.isClosed()) {
+              serverSocket.close();
+              System.out.println("Connessione server chiusa.");
+            }
+
+            // Chiudi l'executor service
+            executor.shutdown();
+            try {
+              if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                  System.err.println(
+                    "Executor service non si è chiuso correttamente."
+                  );
+                }
+              }
+            } catch (InterruptedException ie) {
+              executor.shutdownNow();
+              Thread.currentThread().interrupt();
+            }
+
+            // Chiudi il socket UDP se è aperto
+            if (socketUDP != null && !socketUDP.isClosed()) {
+              socketUDP.close();
+              System.out.println("Connessione UDP chiusa.");
+            }
+          } catch (IOException | InterruptedException e) {
+            System.out.println("Errore durante la chiusura del server." + e);
+            e.printStackTrace();
+          }
+        })
       );
+    while (running) {
+      try {
+        socket = serverSocket.accept();
+        /* nuovo client arrivato */
+        executor.execute(new ServerThread(socket, socketUDP, group));
+      } catch (SocketException e) {
+        if (!running) {
+          System.out.println("Server interrotto.");
+        } else {
+          throw e;
+        }
+      }
     }
   }
 
@@ -275,21 +359,15 @@ public class HOTELIERServerMain {
 
     private final Socket socket;
     //users contiene gli utenti connessi
-    private final ConcurrentHashMap<String, User> users;
-    private final ConcurrentHashMap<String, ArrayList<Hotel>> hotels;
     private MulticastSocket socketUDP;
     private InetAddress group;
 
     public ServerThread(
       Socket socket,
-      ConcurrentHashMap<String, User> users,
-      ConcurrentHashMap<String, ArrayList<Hotel>> hotels,
       MulticastSocket socketUDP,
       InetAddress group
     ) {
       this.socket = socket;
-      this.users = users;
-      this.hotels = hotels;
       this.socketUDP = socketUDP;
       this.group = group;
     }
@@ -309,19 +387,24 @@ public class HOTELIERServerMain {
       ) {
         String requestClient = null;
 
-        while (
-          (requestClient = in.readLine().toLowerCase()).equals("exit") == false
-        ) {
+        while (running) {
+          requestClient = in.readLine();
+          if (requestClient == null) {
+            break;
+          }
+          //lower case fatto dopo per evitare problemi in caso di errori
+          requestClient = requestClient.toLowerCase();
           Boolean userExist = false;
           //requestClient = in.readLine().toLowerCase();
           System.out.println("Received: " + requestClient);
           //out.println("Ricevuto");
           switch (requestClient) {
             case "register":
-              RegMethods.registerUser(socket, in, out, users);
+              RegMethods.registerUser(socket, in, out);
               break;
             case "login":
-              User user = LogMethods.loginUser(in, out, users); //per loggare
+              User user = LogMethods.loginUser(in, out); //per loggare
+              //se l'utente è loggato
               if (user != null) {
                 System.out.println(
                   "Utente loggato, valori dell'udp message: " +
@@ -332,23 +415,17 @@ public class HOTELIERServerMain {
                 Logged.userLoggedOperations(
                   in,
                   out,
-                  users,
-                  hotels,
-                  hotelsWithReviews,
                   user,
                   new UdpMessage("", group, PORT_NUMBER)
-                ); //una volta loggato
+                );
               }
 
               break;
-            case "logout":
-              JointOperations.logout(in, out, users);
-              break;
             case "search hotel":
-              JointOperations.searchHotel(in, out, hotels);
+              JointOperations.searchHotel(in, out);
               break;
             case "search all hotels":
-              JointOperations.searchAllHotels(in, out, hotels);
+              JointOperations.searchAllHotels(in, out);
               break;
             default:
               System.out.println("Comando non riconosciuto");
@@ -365,11 +442,6 @@ public class HOTELIERServerMain {
       } catch (Exception e) {
         System.out.println("error: " + e);
         Thread.currentThread().interrupt();
-        try {
-          socket.close();
-        } catch (IOException socketException) {
-          socketException.printStackTrace();
-        }
       }
     }
   }

@@ -6,18 +6,30 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 
+/**
+ * Thread per la ricezione dei messaggi UDP, stampa a video il messaggio ricevuto quando viene aggiornato il primo posto di un hotel in città
+ * 
+ */
 public class UdpClientThread extends Thread {
 
   private int port = 8888;
   private String multicastGroup = "230.0.0.0";
   private MulticastSocket socketUDP;
 
+  /**
+   * Costruttore
+   * @param port
+   * @param multicastGroup
+   * @param socketUDP
+   */
   public UdpClientThread(MulticastSocket socketUDP) {
     this.port = port;
     this.multicastGroup = multicastGroup;
     this.socketUDP = socketUDP;
   }
-
+/**
+ * @SuppressWarnings("deprecation") dato che si utilizza la joinGroup che è deprecata, ma utilizzata per Java 8
+ */
   @Override
   @SuppressWarnings("deprecation")
   public void run() {

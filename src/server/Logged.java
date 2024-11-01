@@ -1,29 +1,3 @@
-/*
- * Operazioni utente loggato
- *  searchHotel(nomeHotel, città): ricerca i dati di un particolare hotel appartenente a
- una città e li invia all’utente. Questa operazione può essere effettuata anche dagli
- utenti non loggati.
- ○ serchAllHotels(città): ricerca i dati di tutti gli hotel di quella città e li invia all’utente.
- Gli hotel devono essere inviati ordinati secondo il ranking, calcolato in base alle
- recensioni. Questa operazione può essere effettuata anche dagli utenti non loggati.
- ○ insertReview(nomeHotel, nomeCittà, GlobalScore, [ ] SingleScores): inserisce una
- review per un hotel di una certa città. Viene indicato sia il punteggio complessivo
- per quell’hotel che i singoli punteggi per le varie categorie. L’utente deve essere
- registrato ed aver effettuato il login per effettuare questa operazione.
- ○ showMyBadges(): l’utente richiede di mostrare il proprio distintivo, corrispondente
- al maggior livello di expertise raggiunto. L’utente deve essere registrato ed aver
- effettuato il login per effettuare questa operazione
- 
- 
- Devo creare una classe recensione dove inserisco il tempo della recensione, il badge e il punteggio
- E ordino in base a quello, dove inserisco tutto? Dentro 
- Uso una concurrentHashMap per la lista degli hotel, dove metto city, arraylist
- Ho la multihashmap per gli hotel e li ordino in base alle recensioni, con il metodo sort
- ogni qualvolta però che cambia l'elemento in testa alla lista della città, mando un messaggio udp 
- a tutti i dispositivi connessi
- Devo pensare a come considerare le recensioni, faccio una classe recensione in cui ci metto semplicemente, voto totale, tempo e badge
- 
- */
 package server;
 
 import classes.Hotel;
@@ -44,23 +18,63 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Classe che contiene i metodi per le operazioni dell'utente loggato
+ * <p> Questa classe contiene i metodi per le operazioni dell'utente loggato </p>
+ * <p> Esempio di utilizzo del metodo insertReview </p>
+ * <pre> BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
+ * ConcurrentHashMap<String, ArrayList<Hotel>> hotels = new ConcurrentHashMap<>();
+ * UdpMessage udpMessage = new UdpMessage();
+ * Logged.insertReview(in, out, users, hotels, udpMessage); </pre>
+ * <p> Esempio di utilizzo del metodo logout </p>
+ * <pre> BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
+ * Logged.logout(in, out, users); </pre>
+ * <p> Esempio di utilizzo del metodo showMyBadges </p>
+ * <pre> BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
+ * User user = new User("mario123");
+ * Logged.showMyBadges(in, out, users, user); </pre>
+ * <p> Esempio di utilizzo del metodo userLoggedOperations </p>
+ * <pre> BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * ConcurrentHashMap<String, User> users = new ConcurrentHashMap<>();
+ * ConcurrentHashMap<String, ArrayList<Hotel>> hotels = new ConcurrentHashMap<>();
+ * User userLogged = new User("mario123");
+ * UdpMessage udpMessage = new UdpMessage();
+ * Logged.userLoggedOperations(in, out, users, hotels, userLogged, udpMessage); </pre>
+ *
+ */
 
 public class Logged {
 
   private static final String PATH_AND_FILE_NAME_HOTELS_REVIEWED =
     "src/data/hotelsReviewed.json";
+  public static String PATH_AND_FILE_NAME_USERS = "src/data/Users.json";
   private static final Set<String> cities = Cities.cities;
+  public static String USER_LOGGED_OUT = "USER LOGGED OUT";
 
   // Metodo per aggiornare il file JSON con gli hotel recensiti, qui se cambia il primo si manda il messaggio UDP
-  private static void updateHotelsReviewedFile(
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews
+  /**
+   * Aggiorna il file JSON con gli hotel recensiti, inviando un messaggio UDP se cambia il primo hotel
+   * @param hotels
+   * @throws IOException
+   */
+  /*private static void updateHotelsReviewedFile(
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotels
   ) throws IOException {
     JsonObject jsonObject = new JsonObject();
-    for (String city : hotelsWithReviews.keySet()) {
+    for (String city : hotels.keySet()) {
       JsonArray jsonArray = new JsonArray();
-      for (Hotel hotel : hotelsWithReviews.get(city)) {
+      for (Hotel hotel : hotels.get(city)) {
         JsonElement jsonElement = new Gson().toJsonTree(hotel);
         jsonArray.add(jsonElement);
       }
@@ -74,55 +88,29 @@ public class Logged {
         new GsonBuilder().setPrettyPrinting().create().toJson(jsonObject)
       );
     }
-  }
+  }*/
 
-  // Metodo per unire i nuovi hotel recensiti nella struttura dati
-  private static void mergeHotelsWithReviews(
-    String city,
-    Hotel hotel,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotels,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews
-  ) {
-    // Unisci nella mappa hotelsWithReviews
-    hotelsWithReviews.computeIfAbsent(city, k -> new ArrayList<>()).add(hotel);
-
-    // Sostituisci nella mappa hotels
-    hotels.put(city, new ArrayList<>(hotelsWithReviews.get(city)));
-
-    // Aggiorna il file JSON con gli hotel recensiti
-    try {
-      updateHotelsReviewedFile(hotelsWithReviews);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
-  // Metodo per aggiornare hotels con i dati di hotelsWithReviews
-  public static void mergeHotelsData(
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotels,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews
-  ) {
-    for (String city : hotelsWithReviews.keySet()) {
-      hotels.put(city, new ArrayList<>(hotelsWithReviews.get(city)));
-    }
-    try {
-      updateHotelsReviewedFile(hotelsWithReviews);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
-  public static synchronized void insertReview(
+  /**
+   * Inserisce una recensione per un hotel di una certa città
+   * @param in
+   * @param out
+   * @param users
+   * @param hotels
+   * @param udpMessage
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  public static void insertReview(
     BufferedReader in,
     PrintWriter out,
-    ConcurrentHashMap<String, User> users,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotels,
     UdpMessage udpMessage
   ) throws IOException, InterruptedException {
-    /*
-     * Da verificare
-     */
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = HotelsWithReviewsHandler
+    //prendo la lista degli hotel recensiti dal file hotelsReviewed.json
+
+    ConcurrentHashMap<String, User> users = UserManager
+      .getInstance()
+      .getUsers();
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotels = HotelsWithReviewsHandler
       .getInstance()
       .getHotelsWithReviews();
     Hotel hotelInformations = null;
@@ -130,7 +118,8 @@ public class Logged {
     System.out.println("Received hotel name: " + hotelName);
     String city = in.readLine().toLowerCase().trim(); //non sicuro del lower case
     System.out.println("Received city: " + city);
-    if (cities.contains(city) == false) {
+    //verifico se la città è presente nella lista delle città
+    if (!cities.contains(city)) {
       System.out.println("[LOGGED] Città non presente nella lista delle città");
       out.println("NOCITY");
       return;
@@ -147,9 +136,6 @@ public class Logged {
     Float globalScore = Float.parseFloat(in.readLine());
     System.out.println("Received global score: " + globalScore);
 
-    Float rate = Float.parseFloat(in.readLine());
-    System.out.println("Received single rate: " + rate);
-
     Float levelClean = Float.parseFloat(in.readLine());
     System.out.println("Received level clean: " + levelClean);
 
@@ -163,273 +149,233 @@ public class Logged {
     System.out.println("Received level service: " + levelService);
 
     Float synVote =
-      (
-        globalScore +
-        rate +
-        levelClean +
-        levelQuality +
-        levelPosition +
-        levelService
-      ) /
-      6.0f;
+      (globalScore + levelClean + levelQuality + levelPosition + levelService) /
+      5.0f;
+    synVote = (float) Math.round(synVote * 100) / 100; // Arrotonda a due decimali
     //c'e un altro modo per scrivere questa media?
-    List<Float> ratings = Arrays.asList(
+    Map<String, Float> ratings = Map.of(
+      "cleaning",
       levelClean,
+      "position",
       levelPosition,
+      "services",
       levelService,
+      "quality",
       levelQuality
     );
     String usn = in.readLine();
+    //per incrementare il numero di recensioni
     System.out.println("Received username : " + usn);
     User user = users.get(usn);
     //non può essere null perché è loggato
     //verifico l'esistenza dell'albergo nella città prima nella lista degli hotel recensiti
 
-    //prendo i dati dell'hotel dal hotels.json
+    /*
+     * Vedo se nella hashmap c'è la città e se c'è l'hotel
+     */
+    /*for (String key : hotels.keySet()) {
+      for (Hotel hotel : hotels.get(key)) {
+        if (
+         hotel.getCity().toLowerCase().equals(city)
+        ) {
+          //verifico se l'hotel è già presente nella lista degli hotel recensiti
+
+          System.out.println(
+            "[LOGGED] Hotel già presente nella lista degli hotel recensiti"
+          );
+          //Aggiungo la recensione
+          Review review = new Review(synVote, ratings);
+          hotel.addReview(review);
+          RankingAlgorithm.calculateRanking(hotel, udpMessage);
+          return;
+        }
+      }
+    }*/
+    // Scorri la ConcurrentHashMap
+    // Ottieni l'entrySet della ConcurrentHashMap
+    for (Map.Entry<String, ArrayList<Hotel>> entry : hotels.entrySet()) {
+      String key = entry.getKey(); // Ottieni la chiave (String)
+      ArrayList<Hotel> hotelList = entry.getValue(); // Ottieni la lista di Hotel associata alla chiave
+      if (hotelList == null) {
+        continue;
+      }
+      // Scorri ogni oggetto Hotel nella lista
+      for (Hotel hotel : hotelList) {
+        // Accedi al nome dell'hotel
+        System.out.println("Nome hotel: " + hotel.getName());
+        if (hotel.getName().toLowerCase().equals(hotelName.toLowerCase())) {
+          // Verifico se l'hotel è già presente nella lista degli hotel recensiti
+          System.out.println(
+            "[LOGGED] Hotel già presente nella lista degli hotel recensiti"
+          );
+          // Aggiungo la recensione
+          Review review = new Review(synVote, ratings);
+          hotel.addReview(review);
+          RankingAlgorithm.calculateRanking(hotel, udpMessage);
+          return;
+        }
+      }
+    }
+
+    //altrimenti prendo i dati dell'hotel dal hotels.json se esiste
     Hotel hotelReviewed = JointOperations.returnHotelInformations(
       city,
       hotelName
     );
-
+    //Hotel hotelReviewed = null;
+    //se non esiste l'hotel nella città
     if (hotelReviewed == null) {
       System.out.println("[LOGGED] Hotel non presente nella città");
       out.println("NOHOTEL");
       return;
-    } else {
-      out.println("HOTEL");
     }
+    //altrimenti invio al client che esiste
+    out.println("HOTEL");
 
-    //verifico se la lista degli hotel recensiti, ha o meno hotel
-    Boolean hotelFind = false;
-    ArrayList<Hotel> hotelList = hotelsWithReviews.get(city);
-    if (hotelList == null) {
-      // nessun hotel recensito nella città
-      System.out.println(
-        "[LOGGED] Nessun hotel presente nella lista degli hotel già recensiti "
-      );
-      Hotel newHotel = new Hotel(
-        hotelName,
-        city,
-        hotelReviewed.getDescription(),
-        hotelReviewed.getPhone(),
-        hotelReviewed.getServices(),
-        hotelReviewed.getRate(),
-        hotelReviewed.getRatings(),
-        hotelReviewed.getRanking(),
-        new ArrayList<Review>()
-      );
-
-      //aggiungo la recensione
-
-      Review review = new Review(synVote, ratings);
-      newHotel.addReview(review);
-      RankingAlgorithm.calculateRanking(
-        newHotel,
-        hotelsWithReviews,
-        udpMessage
-      );
-
-      hotelsWithReviews
-        .computeIfAbsent(city, k -> new ArrayList<>())
-        .add(newHotel);
-      //scorro gli elementi della lista degli hotel recensiti per vedere gli hotel recensiti
-      for (Hotel hotel : hotelsWithReviews.get(city)) {
-        System.out.println("[LOGGED] Hotel name inseriti: " + hotel.getName());
-      }
+    //aggiungo la recensione
+    Review review = new Review(synVote, ratings);
+    hotelReviewed.addReview(review);
+    //aggiungo l'hotel alla lista degli hotel recensiti della città
+    if (hotels.containsKey(city)) {
+      hotels.get(city).add(hotelReviewed);
     } else {
-      //verifico se l'hotel è già presente nella lista degli hotel recensiti per quella città
-      for (Hotel hotel : hotelList) {
-        if (hotel.getName().equals(hotelName)) {
-          System.out.println(
-            "[LOGGED] Hotel già presente nella lista degli hotel recensiti"
-          );
-          //aggiungo la recensione
-          Review review = new Review(synVote, ratings);
-          hotel.addReview(review);
-          hotelsWithReviews
-            .computeIfAbsent(city, k -> new ArrayList<>())
-            .add(hotel);
-          //aggiorno il ranking
-          RankingAlgorithm.calculateRanking(
-            hotel,
-            hotelsWithReviews,
-            udpMessage
-          );
-          hotelFind = true;
-
-          break;
-        }
-      }
-      //se non è presente l'hotel nella lista degli hotel recensiti
-      if (!hotelFind) {
-        System.out.println(
-          "[LOGGED] Hotel non presente nella lista degli hotel recensiti"
-        );
-        //aggiungo l'hotel in questione
-        Hotel newHotel = new Hotel(
-          hotelName,
-          city,
-          hotelReviewed.getDescription(),
-          hotelReviewed.getPhone(),
-          hotelReviewed.getServices(),
-          hotelReviewed.getRate(),
-          hotelReviewed.getRatings(),
-          hotelReviewed.getRanking(),
-          new ArrayList<Review>()
-        );
-        //aggiungo la recensione
-
-        Review review = new Review(synVote, ratings);
-        newHotel.addReview(review);
-        hotelsWithReviews
-          .computeIfAbsent(city, k -> new ArrayList<>())
-          .add(newHotel);
-
-        //aggiorno il ranking
-        RankingAlgorithm.calculateRanking(
-          newHotel,
-          hotelsWithReviews,
-          udpMessage
-        );
-
-        //scorro gli hotels di hotelsWithReviews per vedere gli hotel recensiti
-        for (Hotel hotel : hotelsWithReviews.get(city)) {
-          System.out.println("[LOGGED] Hotel name: " + hotel.getName());
-        }
-      }
+      hotels.put(city, new ArrayList<>(Arrays.asList(hotelReviewed)));
     }
-
-    /*
-     * FINE TEST NUOVA VERSIONE
-     */
-    //se non c'è la città nella lista degli hotel recensiti, lo aggiungo
-    /*if (hotelList == null) {
-      System.out.println(
-        "[LOGGED] Città non presente nella lista degli hotel già recensiti "
-      );
-      //aggiungo l'hotel in questione
-
-      JointOperations.insertHotelName(city, hotelName, hotelsWithReviews);
-    } else {
-      //verifico se l'hotel è già presente nella lista degli hotel recensiti
-      Boolean hotelFound = false;
-      for (Hotel hotel : hotelList) {
-        if (hotel.getName().equals(hotelName)) {
-          System.out.println(
-            "[LOGGED] Hotel già presente nella lista degli hotel recensiti"
-          );
-          hotelFound = true;
-          break;
-        }
-      }
-      if (!hotelFound) {
-        System.out.println(
-          "[LOGGED] Hotel non presente nella lista degli hotel recensiti"
-        );
-        JointOperations.insertHotelName(city, hotelName, hotelsWithReviews);
-      }
-      
-    }
-
-    if (hotelsWithReviews.get(city) == null) {
-      System.out.println("[LOGGED] Hotel non presente nella città");
-      out.println("NOHOTEL");
-      return;
-    } else {
-      out.println("HOTEL");
-    }*/
-
-    //altrimenti aggiungo la recensione
-    /*Boolean hotelFound = false;
-    // Cerca l'hotel nella mappa degli hotel
-    for (ArrayList<Hotel> hotelLists : hotels.values()) {
-      for (Hotel hotel : hotelLists) {
-        //System.out.println("Hotel name: " + hotel.getName());
-        if (hotel.getName().equals(hotelName)) {
-          // Aggiungi la recensione
-          Review review = new Review(synVote, ratings);
-          hotel.addReview(review);
-          System.out.println("[LOGGED] Trovato hotel nella mappa");
-          // Aggiorna il ranking dell'hotel, ma dovrebbe essere HotelRankingUpdater.updateHotelRankings(city, hotels, udpMessage);
-          RankingAlgorithm.calculateRanking(
-            hotel,
-            hotelsWithReviews,
-            udpMessage
-          );
-
-          //aggiorno il ranking
-
-          /* 
-          // Unisci l'hotel recensito nella nuova struttura dati e se cambia il primo, manda un messaggio UDP
-          mergeHotelsWithReviews(
-            hotel.getCity(),
-            hotel,
-            hotels,
-            hotelsWithReviews
-          );
-
-          hotelFound = true;
-          break;*/
-    //  }
-    //}
-
     // Aggiorna il badge dell'utente
     if (user != null) {
       user.incrementRN();
     }
-    //problema nella scrittura del nuovo file json
+    return;
   }
 
+  /**
+   * Esegue il logout dell'utente
+   * @param in
+   * @param out
+   * @param users
+   * @throws IOException
+   */
+  public static synchronized void logout(BufferedReader in, PrintWriter out)
+    throws IOException {
+    ConcurrentHashMap<String, User> users = UserManager
+      .getInstance()
+      .getUsers();
+    String usn = in.readLine();
+    User user = users.get(usn);
+    if (user == null) {
+      out.println("username non esistente");
+      return;
+    }
+    user.setOffline();
+    /*//cambio lo stato nel json
+    try {
+      // 1. Apri il file JSON utilizzando FileReader
+      FileReader reader = new FileReader(PATH_AND_FILE_NAME_USERS);
+
+      // 2. Usa il JsonParser per ottenere il JsonArray dal file
+      JsonArray jsonArray = JsonParser.parseReader(reader).getAsJsonArray();
+
+      // 3. Itera sugli oggetti del JsonArray
+      for (JsonElement element : jsonArray) {
+        JsonObject obj = element.getAsJsonObject();
+
+        // 4. Modifica il campo "online"
+        if (obj.equals(user)) {
+          obj.addProperty("online", false);
+          break;
+        }
+      }
+
+      // 5. Scrivi il JsonArray modificato di nuovo nel file
+      FileWriter writer = new FileWriter(PATH_AND_FILE_NAME_USERS);
+      Gson gson = new GsonBuilder().setPrettyPrinting().create(); // Formatta il JSON per renderlo leggibile
+      gson.toJson(jsonArray, writer); // Scrivi nel file
+      writer.close();
+
+      System.out.println("File JSON aggiornato correttamente!");
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    //invio la risposta
+    out.println(USER_LOGGED_OUT);
+    out.flush();
+    // 6. Rimuovi l'utente dal HashMap
+    //users.remove(usn);*/
+
+  }
+
+  /**
+   * Mostra i distintivi dell'utente
+   * @param in
+   * @param out
+   * @param users
+   * @param user
+   * @throws IOException
+   */
   public static void showMyBadges(
     BufferedReader in,
     PrintWriter out,
-    ConcurrentHashMap<String, User> users,
     User user
   ) throws IOException {
+    ConcurrentHashMap<String, User> users = UserManager
+      .getInstance()
+      .getUsers();
     out.println(user.getBadge().toString());
     out.flush();
   }
 
+  /**
+   * Operazioni dell'utente loggato
+   * @param in
+   * @param out
+   * @param users
+   * @param hotels
+   * @param userLogged
+   * @param udpMessage
+   * @throws IOException
+   * @throws InterruptedException
+   */
   public static synchronized void userLoggedOperations(
     BufferedReader in,
     PrintWriter out,
-    ConcurrentHashMap<String, User> users,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotels,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews,
     User userLogged,
     UdpMessage udpMessage
   ) throws IOException, InterruptedException {
-    /*
-     * stampo quello che può fare l'utente, devo iterare
-     */
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = HotelsWithReviewsHandler
+      .getInstance()
+      .getHotelsWithReviews();
+    ConcurrentHashMap<String, User> users = UserManager
+      .getInstance()
+      .getUsers();
     System.out.println("Sono entrato nella logged.java");
     String command = " ";
+    //ciclo per ricevere i comandi
     while (!(command = in.readLine().toLowerCase()).equals("exit")) {
       System.out.println("Ricevuto comando: " + command);
       switch (command) {
         case "search hotel":
-          JointOperations.searchHotel(in, out, hotels);
+          JointOperations.searchHotel(in, out);
           //prendo il dato
           break;
         case "search all hotels":
-          JointOperations.searchAllHotels(in, out, hotels);
+          JointOperations.searchAllHotels(in, out);
           //prendo i dati
           break;
         case "insert review":
-          insertReview(in, out, users, hotels, udpMessage);
+          insertReview(in, out, udpMessage);
           //più complicato
           break;
         case "show my badges":
-          showMyBadges(in, out, users, userLogged);
+          showMyBadges(in, out, userLogged);
           //prendo le info sullo user
           break;
         case "logout":
-          JointOperations.logout(in, out, users);
+          logout(in, out);
           //chiudo la connessione con la socket
           break;
-        /*case "exit":
-        System.out.println("Exiting...");
-        break;*/
+        case "exit":
+          System.out.println("Exiting...");
+          break;
         default:
           out.println("Comando non riconosciuto");
           break;

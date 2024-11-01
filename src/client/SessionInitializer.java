@@ -8,11 +8,23 @@ import java.net.Socket;
 import java.nio.channels.DatagramChannel;
 import java.util.Scanner;
 
-/*
- * Svolgo le operazioni pre login
+/**
+ * Classe che contiene i metodi per inizializzare la sessione, ovvero per la registrazione, il login, la ricerca di un hotel, la ricerca di tutti gli hotel e l'uscita
+ * <p> Questa classe contiene i metodi per inizializzare la sessione, ovvero per la registrazione, il login, la ricerca di un hotel, la ricerca di tutti gli hotel e l'uscita </p>
+ * <p> Esempio di utilizzo del metodo sessionMethods </p>
+ * <pre> Socket socket = new Socket(HOST_NAME, PORT);
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * BufferedReader inServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * MulticastSocket socketUDP = new MulticastSocket(4446);
+ * SessionInitializer.sessionMethods(socket, out, inServer, socketUDP); </pre>
+ * <p> Esempio di utilizzo del metodo closeConnections </p>
+ * <pre> Socket socket = new Socket(HOST_NAME, PORT);
+ * PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+ * BufferedReader inServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+ * MulticastSocket socketUDP = new MulticastSocket(4446);
+ * SessionInitializer.closeConnections(socket, out, inServer, socketUDP); </pre>
+ *
  */
-
-//passa certe stringhe
 public class SessionInitializer {
 
   static final String HOST_NAME = "localhost";
@@ -20,6 +32,14 @@ public class SessionInitializer {
   static final String EOF = "EOF";
   static final String END = "END";
 
+  /**
+   * Inizializza la sessione con il server, ovvero la registrazione, il login, la ricerca di un hotel, la ricerca di tutti gli hotel e l'uscita
+   * @param socket
+   * @param out
+   * @param inServer
+   * @param socketUDP
+   * @throws IOException
+   */
   public static void sessionMethods(
     Socket socket,
     PrintWriter out,
@@ -106,6 +126,9 @@ public class SessionInitializer {
                 serverResponse = inServer.readLine();
               }
             }
+            /*
+             * da aggiustare
+             */
             pwd = InsertInformations.insertPassword(in);
             out.println(pwd);
             serverResponse = inServer.readLine();
@@ -171,32 +194,12 @@ public class SessionInitializer {
             /*
              * invio il messaggio di ricerca dell'hotel al server
              */
-            out.println(command);
-            hotelName = InsertInformations.insertHotelName(in);
-            out.println(hotelName);
-            city = InsertInformations.insertCity(in);
-            out.println(city);
-            /*
-             * in base a cosa restituisce, stampo
-             */
-            serverResponse = inServer.readLine().toLowerCase();
-            //da vedere meglio
-            while ((serverResponse = inServer.readLine()) != null) {
-              if (serverResponse.equals(EOF)) {
-                break; // Fine della trasmissione
-              } else {
-                hotelInformations += serverResponse;
-              }
-            }
-            synchronized (System.out) {
-              System.out.println("Info sull'hotel " + hotelInformations); // stampa le più opzioni
-            }
-            hotelInformations = null;
+            JointClientOperations.searchHotelClient(out, in, inServer, command);
             break;
           case "search all hotels":
             /*
              * invio il messaggio di ricerca di tutti gli hotel al server
-             */
+             
             out.println(command);
             city = InsertInformations.insertCity(in);
             out.println(city);
@@ -210,7 +213,13 @@ public class SessionInitializer {
                   break;
                 }
               }
-            }
+            }*/
+            JointClientOperations.searchAllHotelsClient(
+              out,
+              in,
+              inServer,
+              command
+            );
 
             break;
           case "exit":
@@ -235,6 +244,14 @@ public class SessionInitializer {
     inServer.close();
   }
 
+  /**
+   * Metodo per chiudere le connessioni
+   * @param socket
+   * @param out
+   * @param in
+   * @param inServer
+   * @param socketUDP
+   */
   private static void closeConnections(
     Socket socket,
     PrintWriter out,
@@ -245,33 +262,48 @@ public class SessionInitializer {
     try {
       if (out != null) out.close();
     } catch (Exception e) {
-      System.out.println("Errore durante la chiusura di PrintWriter: " + e);
+      synchronized (System.out) {
+        System.out.println("Errore durante la chiusura di PrintWriter: " + e);
+      }
       e.printStackTrace();
     }
 
     try {
       if (inServer != null) inServer.close();
     } catch (IOException e) {
-      System.out.println("Errore durante la chiusura di BufferedReader: " + e);
+      synchronized (System.out) {
+        System.out.println(
+          "Errore durante la chiusura di BufferedReader: " + e
+        );
+      }
       e.printStackTrace();
     }
 
     try {
       if (in != null) in.close();
     } catch (Exception e) {
-      System.out.println("Errore durante la chiusura di Scanner: " + e);
+      synchronized (System.out) {
+        System.out.println("Errore durante la chiusura di Scanner: " + e);
+      }
       e.printStackTrace();
     }
 
     try {
       if (socket != null && !socket.isClosed()) socket.close();
     } catch (IOException e) {
-      System.out.println("Errore durante la chiusura di Socket: " + e);
+      synchronized (System.out) {
+        System.out.println("Errore durante la chiusura di Socket: " + e);
+      }
       e.printStackTrace();
     }
     try {
       if (socketUDP != null && !socketUDP.isClosed()) socketUDP.close();
     } catch (Exception e) {
+      synchronized (System.out) {
+        System.out.println(
+          "Errore durante la chiusura di MulticastSocket: " + e
+        );
+      }
       e.printStackTrace();
     }
   }

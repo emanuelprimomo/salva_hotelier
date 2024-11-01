@@ -20,6 +20,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
+/**
+ * Classe principale del client
+ * 
+ */
 public class HOTELIERClientMain {
 
   static final String HOST_NAME = "localhost";
@@ -73,6 +77,7 @@ public class HOTELIERClientMain {
     }
   }*/
 
+  
   public static void main(String[] args)
     throws UnknownHostException, IOException, InterruptedException {
     Scanner in = new Scanner(System.in);
@@ -103,7 +108,6 @@ public class HOTELIERClientMain {
     MulticastSocket socketUDP = new MulticastSocket();
     UdpClientThread udpListener = new UdpClientThread(socketUDP);
     udpListener.start();
-    //thread.start();
     SessionInitializer.sessionMethods(socket, out, inServer, socketUDP);
   }
 }

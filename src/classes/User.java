@@ -17,7 +17,6 @@ public class User {
   public User(String username, String password) {
     this.usn = username;
     this.pwd = password;
-    //forse conviene chiamarlo badge
     this.badge = "recensore";
     this.rn = 0;
     this.online = false;

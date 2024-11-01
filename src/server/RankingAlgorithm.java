@@ -12,6 +12,20 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Classe che implementa l'algoritmo di ranking degli hotel.
+ * <p> Questa classe implementa l'algoritmo di ranking degli hotel. </p>
+ * <p> Esempio di utilizzo del metodo calculateRanking </p>
+ * <pre> Hotel hotel = new Hotel();
+ * UdpMessage udpMessage = new UdpMessage();
+ * RankingAlgorithm.calculateRanking(hotel, udpMessage); </pre>
+ * <p> Esempio di utilizzo del metodo calculateRankingScore </p>
+ * <pre> Hotel hotel = new Hotel();
+ * Float ranking = RankingAlgorithm.calculateRankingScore(hotel); </pre>
+ * <p> Esempio di utilizzo del metodo calculateWeightedQuality </p>
+ * <pre> Hotel hotel = new Hotel();
+ *
+ */
 public class RankingAlgorithm {
 
   /*'
@@ -27,7 +41,7 @@ Normalizzazione: Il ranking totale viene diviso per il numero totale di voti per
   ) throws InterruptedException {
     List<Review> reviews = hotel.getReviews();
     Float ranking = 0.0f;
-    Float totalVotes = (float) reviews.size();
+    Float totalVotes = (Float) reviews.size();
     // Calcola il punteggio per ogni recensione
 
     for (Review review : reviews) {
@@ -65,29 +79,31 @@ Normalizzazione: Il ranking totale viene diviso per il numero totale di voti per
 
   // Assicurati che le classi Hotel e Review abbiano i metodi necessari (getReviews(), getDate(), getSynVote(), getVotes(), setRanking()).
 
-  public static void calculateRanking(
-    Hotel hotel,
-    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews,
-    UdpMessage udpMessage
-  ) throws InterruptedException {
-    float ranking = calculateRankingScore(hotel);
+  /**
+   * Calcola il ranking di un hotel.
+   * @param hotel
+   * @param udpMessage
+   * @throws InterruptedException
+   */
+  public static void calculateRanking(Hotel hotel, UdpMessage udpMessage)
+    throws InterruptedException {
+    ConcurrentHashMap<String, ArrayList<Hotel>> hotelsWithReviews = HotelsWithReviewsHandler
+      .getInstance()
+      .getHotelsWithReviews();
+    Float ranking = calculateRankingScore(hotel);
     hotel.setRanking(ranking);
     System.out.println(
       "[CALCULATE RANKING] Hotel " + hotel.getName() + " - Ranking: " + ranking
     );
     //Aggiorno il ranking
-    HotelRankingUpdater.updateHotelRankings(
-      hotel,
-      hotelsWithReviews,
-      udpMessage
-    );
+    HotelRankingUpdater.updateHotelRankings(hotel, udpMessage);
     /*for (List<Hotel> hotels : hotelsWithReviews.values()) {
       hotels.sort(
         new Comparator<Hotel>() {
           @Override
           public int compare(Hotel h1, Hotel h2) {
-            float ranking1 = calculateRankingScore(h1);
-            float ranking2 = calculateRankingScore(h2);
+            Float ranking1 = calculateRankingScore(h1);
+            Float ranking2 = calculateRankingScore(h2);
 
             return Float.compare(ranking2, ranking1);
           }
@@ -97,8 +113,13 @@ Normalizzazione: Il ranking totale viene diviso per il numero totale di voti per
     return;
   }
 
-  private static float calculateRankingScore(Hotel hotel) {
-    float quality = calculateWeightedQuality(hotel);
+  /**
+   * Calcola il punteggio di ranking di un hotel.
+   * @param hotel
+   * @return
+   */
+  private static Float calculateRankingScore(Hotel hotel) {
+    Float quality = calculateQuality(hotel);
     int quantity = hotel.getTotalVotes();
     int recency = calculateRecentVotes(hotel);
 
@@ -106,20 +127,30 @@ Normalizzazione: Il ranking totale viene diviso per il numero totale di voti per
     return quality + quantity + recency;
   }
 
-  private static float calculateWeightedQuality(Hotel hotel) {
+  /**
+   * Calcola la qualità di un hotel in base a quanto sono recenti le recensioni e il loro voto sintetico.
+   * @param hotel
+   * @return
+   */
+  private static Float calculateQuality(Hotel hotel) {
     long nowInSeconds = Instant.now().getEpochSecond();
-    float totalWeightedQuality = 0.0f;
-    float totalWeight = 0.0f;
+    Float totalWeightedQuality = 0.0f;
+    Float totalWeight = 0.0f;
     for (Review review : hotel.getReviews()) {
       long reviewInSeconds = review.getDate().toInstant().getEpochSecond();
       long secondsSinceReview = nowInSeconds - reviewInSeconds;
-      float weight = 1.0f / (secondsSinceReview + 1); // Più recente è la recensione, maggiore è il peso
+      Float weight = 1.0f / (secondsSinceReview + 1); // Più recente è la recensione, maggiore è il peso
       totalWeightedQuality += review.getSynVote() * weight;
       totalWeight += weight;
     }
     return totalWeight > 0 ? totalWeightedQuality / totalWeight : 0.0f;
   }
 
+  /**
+   * Calcola il numero di voti recenti di un hotel e il numero totale di voti recenti.
+   * @param hotel
+   * @return
+   */
   private static int calculateRecentVotes(Hotel hotel) {
     long currentTimeInMillis =
       LocalDate.now().toEpochDay() * 24L * 60 * 60 * 1000;

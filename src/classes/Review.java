@@ -1,7 +1,9 @@
 package classes;
 
+import com.google.gson.JsonObject;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /*
@@ -18,14 +20,13 @@ public class Review {
 
   private Float synVote;
   private Date date;
-  private List<Float> ratings;
+  private Map<String, Float> ratings;
 
-  public Review(Float synVote, List<Float> ratings) {
+  public Review(Float synVote, Map<String, Float> ratings) {
     this.synVote = synVote; // rappresenta la quality
     //this.quantity = quantity;
     this.date = new Date();
     this.ratings = ratings;
-
   }
 
   public Float getSynVote() {
@@ -42,6 +43,14 @@ public class Review {
 
   public void setSynVote(Float synVote) {
     this.synVote = synVote;
+  }
+
+  public void setDate(Date date) {
+    this.date = date;
+  }
+
+  public Map<String, Float> getRatings() {
+    return this.ratings;
   }
 }
 /*

@@ -46,29 +46,34 @@ public class SessionHandler {
         case "search hotel":
           /*
            *
-           */
+           
           out.println(command);
           hotelName = InsertInformations.insertHotelName(in);
           /*
            * verifico se c'è l'hotel nel json?
-           */
+           
           out.println(hotelName);
-          System.out.println("Inviato hotel name: " + hotelName);
+
+          synchronized (System.out) {
+            System.out.println("Inviato hotel name: " + hotelName);
+          }
           /*serverResponse = inServer.readLine().toLowerCase();
             synchronized (System.out) {
               System.out.println(serverResponse); // stampa le più opzioni
-            }*/
+            }
           out.flush();
           city = InsertInformations.insertCity(in);
           out.println(city);
-          System.out.println("Inviata citta : " + city);
+          synchronized (System.out) {
+            System.out.println("Inviata città: " + city);
+          }
           /*serverResponse = inServer.readLine().toLowerCase();
             synchronized (System.out) {
               System.out.println(serverResponse); // stampa le più opzioni
-            }*/
+            }
           /*
            * in base a cosa restituisce, stampo
-           */
+           
           out.println(command);
           //serverResponse = inServer.readLine();
           while ((serverResponse = inServer.readLine()) != null) {
@@ -76,16 +81,19 @@ public class SessionHandler {
               break; // Fine della trasmissione
             } else {
               hotelInformations.concat(serverResponse);
-              System.out.println("Arrivato hotel: " + serverResponse);
+              synchronized (System.out) {
+                System.out.println("Arrivato hotel: " + serverResponse);
+              }
             }
           }
           System.out.println(hotelInformations); // stampa le più opzioni
-          hotelInformations = null;
+          hotelInformations = null;*/
+          JointClientOperations.searchHotelClient(out, in, inServer, command);
           break;
         case "search all hotels":
           /*
            *
-           */
+           
           out.println(command);
           city = InsertInformations.insertCity(in);
           out.println(city);
@@ -104,6 +112,13 @@ public class SessionHandler {
         /*
          * Faccio la insert review
          */
+          JointClientOperations.searchAllHotelsClient(
+            out,
+            in,
+            inServer,
+            command
+          );
+          break;
         case "insert review":
           /*
            * DA AGGIUSTARE
@@ -119,6 +134,7 @@ public class SessionHandler {
           city = InsertInformations.insertCity(in);
           out.println(city);
 
+
           while ((serverResponse = inServer.readLine()).equals("NOCITY")) {
             synchronized (System.out) {
               System.out.println("Città non presente, reinserire");
@@ -129,9 +145,6 @@ public class SessionHandler {
           }
           //altrimenti trovata la città
           out.println(InsertInformations.insertGlobalScore(in));
-          out.flush();
-
-          out.println(InsertInformations.insertRate(in));
           out.flush();
 
           out.println(InsertInformations.insertLevelClean(in));
@@ -145,21 +158,29 @@ public class SessionHandler {
 
           out.println(InsertInformations.insertLevelService(in));
           out.flush();
-          System.out.println("[Client] Inserimento dati recensione completato");
+          synchronized (System.out) {
+            System.out.println(
+              "[Client] Inserimento dati recensione completato"
+            );
+          }
           /*
            * invio l'utente che ha fatto la recensione
            */
           out.println(usn);
           out.flush();
-
-          if ((serverResponse = inServer.readLine()).equals("NOHOTEL")) {
+          /*
+           * ricevo la risposta dal server
+           */
+          serverResponse = inServer.readLine();
+      
+          /*  if ((serverResponse = inServer.readLine()).equals("NOHOTEL")) {
             synchronized (System.out) {
               System.out.println(
                 "Hotel non presente, recensione non effettuata"
               );
               break;
             }
-          }
+          }*/
 
           out.println(userConnected);
           synchronized (System.out) {
